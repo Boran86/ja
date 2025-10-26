@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Bot, User, FileText, X } from "lucide-react"; // Added FileText and X icons
+import { Loader2, Bot, User, FileText, X } from "lucide-react";
 import { showError } from "@/utils/toast";
 
 interface Message {
@@ -25,10 +25,10 @@ const Chatbot = () => {
   const [currentMessage, setCurrentMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isInitialInputPhase, setIsInitialInputPhase] = useState<boolean>(true);
-  const [resumeFileName, setResumeFileName] = useState<string | null>(null); // New state for file name
+  const [resumeFileName, setResumeFileName] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,13 +39,11 @@ const Chatbot = () => {
   const handleResumeFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Check for allowed file extensions
       const allowedExtensions = [".txt", ".md", ".pdf", ".docx"];
       const fileExtension = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
 
       if (!allowedExtensions.includes(fileExtension)) {
         showError("Please upload a plain text (.txt), Markdown (.md), PDF (.pdf), or DOCX (.docx) file for your resume.");
-        // Clear the file input if an unsupported file type is selected
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -65,7 +63,7 @@ const Chatbot = () => {
         setResume("");
         setResumeFileName(null);
       };
-      reader.readAsText(file); // This will attempt to read PDF/DOCX as text, which might not work as expected.
+      reader.readAsText(file);
     } else {
       setResume("");
       setResumeFileName(null);
@@ -76,7 +74,7 @@ const Chatbot = () => {
     setResume("");
     setResumeFileName(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Clear the file input visually
+      fileInputRef.current.value = "";
     }
   };
 
@@ -86,9 +84,41 @@ const Chatbot = () => {
       return;
     }
     setIsInitialInputPhase(false);
-    setMessages([
-      { role: "assistant", content: "Hello! I've received your resume and job description. How can I help you with your job application today?" }
-    ]);
+    setIsLoading(true);
+    setMessages([]); // Clear any previous messages
+
+    try {
+      const payload = {
+        resume: resume,
+        job_description: jobDescription,
+        chat_history: [], // Initial call, no chat history yet
+      };
+
+      const response = await fetch(LLM_WEBHOOK_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+        showError(`Failed to get a response from the AI. Status: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const llmResponseContent = data.response || "Sorry, I couldn't get a response from the LLM.";
+      setMessages([{ role: "assistant", content: llmResponseContent }]); // Set the LLM's response as the first message
+    } catch (error) {
+      console.error("Error sending initial data to LLM:", error);
+      showError("I apologize, but I encountered an error during the initial conversation. Please try again later.");
+      setMessages([{ role: "assistant", content: "I apologize, but I encountered an error. Please try again later." }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const sendMessage = async () => {
@@ -192,7 +222,8 @@ const Chatbot = () => {
                   className="min-h-[150px]"
                 />
               </div>
-              <Button onClick={handleStartChat} className="w-full">
+              <Button onClick={handleStartChat} className="w-full" disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Start Conversation
               </Button>
             </div>
