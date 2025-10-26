@@ -24,7 +24,7 @@ const Chatbot = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isInitialInputPhase, setIsInitialInputPhase] = useState<boolean>(true);
+  const [isInitialInputPhase, setIsInitialInputInputPhase] = useState<boolean>(true);
   const [resumeFileName, setResumeFileName] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -39,11 +39,11 @@ const Chatbot = () => {
   const handleResumeFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const allowedExtensions = [".txt", ".md", ".pdf", ".docx"];
+      const allowedExtensions = [".txt"]; // Only .txt allowed
       const fileExtension = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
 
       if (!allowedExtensions.includes(fileExtension)) {
-        showError("Please upload a plain text (.txt), Markdown (.md), PDF (.pdf), or DOCX (.docx) file for your resume.");
+        showError("Please upload a plain text (.txt) file for your resume.");
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -59,7 +59,7 @@ const Chatbot = () => {
         setResume(content);
       };
       reader.onerror = () => {
-        showError("Failed to read resume file. Please ensure it's a readable text, Markdown, PDF, or DOCX file.");
+        showError("Failed to read resume file. Please ensure it's a readable text file.");
         setResume("");
         setResumeFileName(null);
       };
@@ -83,7 +83,7 @@ const Chatbot = () => {
       showError("Please provide both your resume and the job description to start the chat.");
       return;
     }
-    setIsInitialInputPhase(false);
+    setIsInitialInputInputPhase(false);
     setIsLoading(true);
     setMessages([]); // Clear any previous messages
 
@@ -196,17 +196,17 @@ const Chatbot = () => {
           <CardTitle className="text-2xl font-bold text-center">AI Job Assistant</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          {isInitialInputPhase ? (
+          {isInitialInputInputPhase ? (
             <div className="space-y-6">
               <div>
                 <label htmlFor="resume-upload" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Upload Your Resume (TXT, Markdown, PDF, or DOCX)
+                  Upload Your Resume (TXT only)
                 </label>
                 <div className="flex items-center space-x-2">
                   <Input
                     id="resume-upload"
                     type="file"
-                    accept=".txt,.md,.pdf,.docx"
+                    accept=".txt" // Only .txt allowed
                     onChange={handleResumeFileUpload}
                     ref={fileInputRef}
                     className="flex-1"
