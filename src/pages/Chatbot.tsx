@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, ChangeEvent } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Bot, User } from "lucide-react";
-import { showError } from "@/utils/toast"; // Import showError
+import { Loader2, Bot, User, FileText, X } from "lucide-react"; // Added FileText and X icons
+import { showError } from "@/utils/toast";
 
 interface Message {
   role: "user" | "assistant";
@@ -25,14 +25,56 @@ const Chatbot = () => {
   const [currentMessage, setCurrentMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isInitialInputPhase, setIsInitialInputPhase] = useState<boolean>(true);
+  const [resumeFileName, setResumeFileName] = useState<string | null>(null); // New state for file name
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref for file input
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(scrollToBottom, [messages]);
+
+  const handleResumeFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.type !== "text/plain" && !file.name.endsWith(".md")) {
+        showError("Please upload a plain text (.txt) or Markdown (.md) file for your resume.");
+        // Clear the file input if an unsupported file type is selected
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        setResume("");
+        setResumeFileName(null);
+        return;
+      }
+
+      setResumeFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        setResume(content);
+      };
+      reader.onerror = () => {
+        showError("Failed to read resume file.");
+        setResume("");
+        setResumeFileName(null);
+      };
+      reader.readAsText(file);
+    } else {
+      setResume("");
+      setResumeFileName(null);
+    }
+  };
+
+  const clearResumeFile = () => {
+    setResume("");
+    setResumeFileName(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Clear the file input visually
+    }
+  };
 
   const handleStartChat = async () => {
     if (!resume.trim() || !jobDescription.trim()) {
@@ -104,17 +146,34 @@ const Chatbot = () => {
           {isInitialInputPhase ? (
             <div className="space-y-6">
               <div>
-                <label htmlFor="resume" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Your Resume (paste text here)
+                <label htmlFor="resume-upload" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Upload Your Resume (TXT or Markdown)
                 </label>
-                <Textarea
-                  id="resume"
-                  placeholder="Paste your resume text here..."
-                  value={resume}
-                  onChange={(e) => setResume(e.target.value)}
-                  rows={10}
-                  className="min-h-[150px]"
-                />
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="resume-upload"
+                    type="file"
+                    accept=".txt,.md"
+                    onChange={handleResumeFileUpload}
+                    ref={fileInputRef}
+                    className="flex-1"
+                  />
+                  {resumeFileName && (
+                    <Button variant="outline" size="icon" onClick={clearResumeFile} aria-label="Clear resume file">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                {resumeFileName && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 flex items-center">
+                    <FileText className="h-4 w-4 mr-1" /> {resumeFileName}
+                  </p>
+                )}
+                {!resumeFileName && resume.trim() && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                    Resume content manually pasted.
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="job-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
