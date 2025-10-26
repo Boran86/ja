@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Bot, User } from "lucide-react";
 import { showError } from "@/utils/toast";
+import ReactMarkdown from "react-markdown"; // Import ReactMarkdown
 
 interface Message {
   role: "user" | "assistant";
@@ -227,13 +228,13 @@ const Chatbot = () => {
                         </Avatar>
                       )}
                       <div
-                        className={`max-w-[70%] p-3 rounded-lg ${
+                        className={`max-w-[70%] p-3 rounded-lg prose dark:prose-invert ${ // Added prose classes for basic markdown styling
                           msg.role === "user"
                             ? "bg-blue-600 text-white"
                             : "bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100"
                         }`}
                       >
-                        <p className="text-sm" dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br />') }} />
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
                       </div>
                       {msg.role === "user" && (
                         <Avatar className="h-8 w-8">
