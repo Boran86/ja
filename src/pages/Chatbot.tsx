@@ -110,8 +110,16 @@ const Chatbot = () => {
       }
 
       const data = await response.json();
-      const llmResponseContent = data.response || "Sorry, I couldn't get a response from the LLM.";
-      setMessages([{ role: "assistant", content: llmResponseContent }]); // Set the LLM's response as the first message
+      console.log("Full LLM response data (initial chat):", data); // Log the full response
+
+      const llmResponseContent = data.response;
+      if (llmResponseContent) {
+        setMessages([{ role: "assistant", content: llmResponseContent }]); // Set the LLM's response as the first message
+      } else {
+        console.error("LLM response data did not contain a 'response' field:", data);
+        showError("The AI responded, but the expected 'response' content was missing. Please check the backend's output format.");
+        setMessages([{ role: "assistant", content: "I apologize, but I received an unexpected response format from the AI. Please try again later." }]);
+      }
     } catch (error) {
       console.error("Error sending initial data to LLM:", error);
       showError("I apologize, but I encountered an error during the initial conversation. Please try again later.");
@@ -153,11 +161,22 @@ const Chatbot = () => {
       }
 
       const data = await response.json();
-      const llmResponseContent = data.response || "Sorry, I couldn't get a response from the LLM.";
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { role: "assistant", content: llmResponseContent },
-      ]);
+      console.log("Full LLM response data (subsequent chat):", data); // Log the full response
+
+      const llmResponseContent = data.response;
+      if (llmResponseContent) {
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { role: "assistant", content: llmResponseContent },
+        ]);
+      } else {
+        console.error("LLM response data did not contain a 'response' field:", data);
+        showError("The AI responded, but the expected 'response' content was missing. Please check the backend's output format.");
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { role: "assistant", content: "I apologize, but I received an unexpected response format from the AI. Please try again later." },
+        ]);
+      }
     } catch (error) {
       console.error("Error sending message to LLM:", error);
       showError("I apologize, but I encountered an error. Please try again later.");
