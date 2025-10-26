@@ -34,6 +34,26 @@ const Chatbot = () => {
 
   useEffect(scrollToBottom, [messages]);
 
+  const processAIResponse = async (response: Response) => {
+    let data;
+    const contentType = response.headers.get("Content-Type");
+
+    if (contentType && contentType.includes("application/json")) {
+      data = await response.json();
+    } else {
+      const textResponse = await response.text();
+      try {
+        // Attempt to parse as JSON even if Content-Type is not application/json
+        data = JSON.parse(textResponse);
+      } catch (parseError) {
+        console.error("Failed to parse response as JSON:", parseError, "Raw response:", textResponse);
+        showError("Received an unparseable response from the AI. Please check the backend.");
+        throw new Error("Unparseable AI response");
+      }
+    }
+    return data;
+  };
+
   const handleStartChat = async () => {
     if (!resume.trim() || !jobDescription.trim()) {
       showError("Please provide both your resume and the job description to start the chat.");
@@ -65,7 +85,7 @@ const Chatbot = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await processAIResponse(response);
       console.log("Full LLM response data (initial chat):", data); // Log the full response
 
       const llmResponseContent = data.response;
@@ -78,8 +98,10 @@ const Chatbot = () => {
       }
     } catch (error) {
       console.error("Error sending initial data to LLM:", error);
-      showError("I apologize, but I encountered an error during the initial conversation. Please try again later.");
-      setMessages([{ role: "assistant", content: "I apologize, but I encountered an error. Please try again later." }]);
+      if (error.message !== "Unparseable AI response") { // Avoid showing generic error if already handled by processAIResponse
+        showError("I apologize, but I encountered an error during the initial conversation. Please try again later.");
+        setMessages([{ role: "assistant", content: "I apologize, but I encountered an error. Please try again later." }]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -116,7 +138,7 @@ const Chatbot = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await processAIResponse(response);
       console.log("Full LLM response data (subsequent chat):", data); // Log the full response
 
       const llmResponseContent = data.response;
@@ -135,11 +157,13 @@ const Chatbot = () => {
       }
     } catch (error) {
       console.error("Error sending message to LLM:", error);
-      showError("I apologize, but I encountered an error. Please try again later.");
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { role: "assistant", content: "I apologize, but I encountered an error. Please try again later." },
-      ]);
+      if (error.message !== "Unparseable AI response") { // Avoid showing generic error if already handled by processAIResponse
+        showError("I apologize, but I encountered an error. Please try again later.");
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { role: "assistant", content: "I apologize, but I encountered an error. Please try again later." },
+        ]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -209,7 +233,7 @@ const Chatbot = () => {
                             : "bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100"
                         }`}
                       >
-                        <p className="text-sm">{msg.content}</p>
+                        <p className="text-sm" dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br />') }} />
                       </div>
                       {msg.role === "user" && (
                         <Avatar className="h-8 w-8">
