@@ -1,3 +1,3 @@
 {
-  "response": "This is the AI's message. It can include multiple lines.\nLike this one, which will be rendered as a new line in the chat."
+  "response": "This is the AI's message. It can include multiple lines.\n\n**Key strengths:**\n* Strong experience in React.\n* Good understanding of TypeScript.\n\n**Areas for improvement:**\n* Consider adding more details about project impact.\n* Tailor your bullet points to match keywords in the job description."
 }
