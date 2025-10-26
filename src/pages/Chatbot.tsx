@@ -16,7 +16,7 @@ interface Message {
   content: string;
 }
 
-const LLM_WEBHOOK_URL = "https://BoranC-n8n-free.hf.space/webhook-test/d05757c2-2919-43f6-86f1-74b92334da60";
+const LLM_WEBHOOK_URL = "https://BoranC-n8n-free.hf.space/webhook/d05757c2-2919-43f6-86f1-74b92334da60";
 
 const Chatbot = () => {
   const [resume, setResume] = useState<string>("");
