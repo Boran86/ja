@@ -21,6 +21,7 @@ const LLM_WEBHOOK_URL = "https://BoranC-n8n-free.hf.space/webhook-test/d05757c2-
 const Chatbot = () => {
   const [resume, setResume] = useState<string>("");
   const [jobDescription, setJobDescription] = useState<string>("");
+  const [customPrompt, setCustomPrompt] = useState<string>(""); // New state for custom prompt
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -91,6 +92,7 @@ const Chatbot = () => {
       const payload = {
         resume: resume,
         job_description: jobDescription,
+        custom_prompt: customPrompt, // Include custom prompt
         chat_history: [], // Initial call, no chat history yet
       };
 
@@ -134,6 +136,7 @@ const Chatbot = () => {
       const payload = {
         resume: resume,
         job_description: jobDescription,
+        custom_prompt: customPrompt, // Include custom prompt in subsequent messages
         chat_history: updatedMessages.map(msg => ({ role: msg.role, content: msg.content })),
       };
 
@@ -208,6 +211,19 @@ const Chatbot = () => {
                     Resume content manually pasted.
                   </p>
                 )}
+              </div>
+              <div>
+                <label htmlFor="custom-prompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Custom Prompt (Optional)
+                </label>
+                <Textarea
+                  id="custom-prompt"
+                  placeholder="Enter a custom prompt to guide the AI (e.g., 'Act as a career coach and help me tailor my resume.')."
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  rows={5}
+                  className="min-h-[100px]"
+                />
               </div>
               <div>
                 <label htmlFor="job-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
