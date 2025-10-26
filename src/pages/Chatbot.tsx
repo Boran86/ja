@@ -24,7 +24,7 @@ const Chatbot = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isInitialInputPhase, setIsInitialInputInputPhase] = useState<boolean>(true);
+  const [isInitialInputPhase, setIsInitialInputPhase] = useState<boolean>(true); // Corrected typo here
   const [resumeFileName, setResumeFileName] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -83,7 +83,7 @@ const Chatbot = () => {
       showError("Please provide both your resume and the job description to start the chat.");
       return;
     }
-    setIsInitialInputInputPhase(false);
+    setIsInitialInputPhase(false); // Corrected typo here
     setIsLoading(true);
     setMessages([]); // Clear any previous messages
 
@@ -196,7 +196,7 @@ const Chatbot = () => {
           <CardTitle className="text-2xl font-bold text-center">AI Job Assistant</CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          {isInitialInputInputPhase ? (
+          {isInitialInputPhase ? ( // Corrected typo here
             <div className="space-y-6">
               <div>
                 <label htmlFor="resume-upload" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
