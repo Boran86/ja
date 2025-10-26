@@ -39,8 +39,12 @@ const Chatbot = () => {
   const handleResumeFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.type !== "text/plain" && !file.name.endsWith(".md")) {
-        showError("Please upload a plain text (.txt) or Markdown (.md) file for your resume.");
+      // Check for allowed file extensions
+      const allowedExtensions = [".txt", ".md", ".pdf", ".docx"];
+      const fileExtension = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+
+      if (!allowedExtensions.includes(fileExtension)) {
+        showError("Please upload a plain text (.txt), Markdown (.md), PDF (.pdf), or DOCX (.docx) file for your resume.");
         // Clear the file input if an unsupported file type is selected
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
@@ -57,11 +61,11 @@ const Chatbot = () => {
         setResume(content);
       };
       reader.onerror = () => {
-        showError("Failed to read resume file.");
+        showError("Failed to read resume file. Please ensure it's a readable text, Markdown, PDF, or DOCX file.");
         setResume("");
         setResumeFileName(null);
       };
-      reader.readAsText(file);
+      reader.readAsText(file); // This will attempt to read PDF/DOCX as text, which might not work as expected.
     } else {
       setResume("");
       setResumeFileName(null);
@@ -147,13 +151,13 @@ const Chatbot = () => {
             <div className="space-y-6">
               <div>
                 <label htmlFor="resume-upload" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Upload Your Resume (TXT or Markdown)
+                  Upload Your Resume (TXT, Markdown, PDF, or DOCX)
                 </label>
                 <div className="flex items-center space-x-2">
                   <Input
                     id="resume-upload"
                     type="file"
-                    accept=".txt,.md"
+                    accept=".txt,.md,.pdf,.docx"
                     onChange={handleResumeFileUpload}
                     ref={fileInputRef}
                     className="flex-1"
