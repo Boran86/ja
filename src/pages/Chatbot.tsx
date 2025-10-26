@@ -10,14 +10,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Bot, User } from "lucide-react";
 import { showError } from "@/utils/toast";
-import ReactMarkdown from "react-markdown"; // Import ReactMarkdown
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-const LLM_WEBHOOK_URL = "https://BoranC-n8n-free.hf.space/webhook/d05757c2-2919-43f6-86f1-74b92334da60"; // Updated URL
+const LLM_WEBHOOK_URL = "https://BoranC-n8n-free.hf.space/webhook/d05757c2-2919-43f6-86f1-74b92334da60";
 
 const Chatbot = () => {
   const [resume, setResume] = useState<string>("");
@@ -44,7 +44,6 @@ const Chatbot = () => {
     } else {
       const textResponse = await response.text();
       try {
-        // Attempt to parse as JSON even if Content-Type is not application/json
         data = JSON.parse(textResponse);
       } catch (parseError) {
         console.error("Failed to parse response as JSON:", parseError, "Raw response:", textResponse);
@@ -62,13 +61,13 @@ const Chatbot = () => {
     }
     setIsInitialInputPhase(false);
     setIsLoading(true);
-    setMessages([]); // Clear any previous messages
+    setMessages([]);
 
     try {
       const payload = {
         resume: resume,
         job_description: jobDescription,
-        chat_history: [], // Initial call, no chat history yet
+        chat_history: [],
       };
 
       const response = await fetch(LLM_WEBHOOK_URL, {
@@ -87,11 +86,11 @@ const Chatbot = () => {
       }
 
       const data = await processAIResponse(response);
-      console.log("Full LLM response data (initial chat):", data); // Log the full response
+      console.log("Full LLM response data (initial chat):", data);
 
       const llmResponseContent = data.response;
       if (llmResponseContent) {
-        setMessages([{ role: "assistant", content: llmResponseContent }]); // Set the LLM's response as the first message
+        setMessages([{ role: "assistant", content: llmResponseContent }]);
       } else {
         console.error("LLM response data did not contain a 'response' field:", data);
         showError("The AI responded, but the expected 'response' content was missing. Please check the backend's output format.");
@@ -99,7 +98,7 @@ const Chatbot = () => {
       }
     } catch (error) {
       console.error("Error sending initial data to LLM:", error);
-      if (error.message !== "Unparseable AI response") { // Avoid showing generic error if already handled by processAIResponse
+      if (error instanceof Error && error.message !== "Unparseable AI response") {
         showError("I apologize, but I encountered an error during the initial conversation. Please try again later.");
         setMessages([{ role: "assistant", content: "I apologize, but I encountered an error. Please try again later." }]);
       }
@@ -119,8 +118,6 @@ const Chatbot = () => {
 
     try {
       const payload = {
-        resume: resume,
-        job_description: jobDescription,
         chat_history: updatedMessages.map(msg => ({ role: msg.role, content: msg.content })),
       };
 
@@ -140,7 +137,7 @@ const Chatbot = () => {
       }
 
       const data = await processAIResponse(response);
-      console.log("Full LLM response data (subsequent chat):", data); // Log the full response
+      console.log("Full LLM response data (subsequent chat):", data);
 
       const llmResponseContent = data.response;
       if (llmResponseContent) {
@@ -158,7 +155,7 @@ const Chatbot = () => {
       }
     } catch (error) {
       console.error("Error sending message to LLM:", error);
-      if (error.message !== "Unparseable AI response") { // Avoid showing generic error if already handled by processAIResponse
+      if (error instanceof Error && error.message !== "Unparseable AI response") {
         showError("I apologize, but I encountered an error. Please try again later.");
         setMessages((prevMessages) => [
           ...prevMessages,
@@ -228,7 +225,7 @@ const Chatbot = () => {
                         </Avatar>
                       )}
                       <div
-                        className={`max-w-[70%] p-3 rounded-lg prose dark:prose-invert ${ // Added prose classes for basic markdown styling
+                        className={`max-w-[70%] p-3 rounded-lg prose dark:prose-invert ${
                           msg.role === "user"
                             ? "bg-blue-600 text-white"
                             : "bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100"
