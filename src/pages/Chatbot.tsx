@@ -4,11 +4,11 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input"; // Keep Input for now, might be removed if not used
 import { Card, CardHeader, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Bot, User } from "lucide-react";
+import { Loader2, Bot } from "lucide-react"; // User icon not needed if no user messages after initial input
 import { showError } from "@/utils/toast";
 import ReactMarkdown from "react-markdown";
 
@@ -22,18 +22,11 @@ const LLM_WEBHOOK_URL = "https://BoranC-n8n-free.hf.space/webhook/d05757c2-2919-
 const Chatbot = () => {
   const [resume, setResume] = useState<string>("");
   const [jobDescription, setJobDescription] = useState<string>("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [currentMessage, setCurrentMessage] = useState<string>("");
+  const [aiResponse, setAiResponse] = useState<string | null>(null); // Stores the single AI response
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isInitialInputPhase, setIsInitialInputPhase] = useState<boolean>(true);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(scrollToBottom, [messages]);
+  // messagesEndRef and scrollToBottom are no longer needed for a single response display
 
   const processAIResponse = async (response: Response) => {
     let data;
@@ -56,18 +49,18 @@ const Chatbot = () => {
 
   const handleStartChat = async () => {
     if (!resume.trim() || !jobDescription.trim()) {
-      showError("Please provide both your resume and the job description to start the chat.");
+      showError("Please provide both your resume and the job description to start.");
       return;
     }
-    setIsInitialInputPhase(false);
+    setIsInitialInputPhase(false); // Transition out of initial input phase
     setIsLoading(true);
-    setMessages([]);
+    setAiResponse(null); // Clear previous response if any
 
     try {
       const payload = {
         resume: resume,
         job_description: jobDescription,
-        chat_history: [],
+        chat_history: [], // Initial call, no chat history yet
       };
 
       const response = await fetch(LLM_WEBHOOK_URL, {
@@ -86,81 +79,21 @@ const Chatbot = () => {
       }
 
       const data = await processAIResponse(response);
-      console.log("Full LLM response data (initial chat):", data);
+      console.log("Full LLM response data:", data);
 
       const llmResponseContent = data.response;
       if (llmResponseContent) {
-        setMessages([{ role: "assistant", content: llmResponseContent }]);
+        setAiResponse(llmResponseContent); // Store the AI's single response
       } else {
         console.error("LLM response data did not contain a 'response' field:", data);
         showError("The AI responded, but the expected 'response' content was missing. Please check the backend's output format.");
-        setMessages([{ role: "assistant", content: "I apologize, but I received an unexpected response format from the AI. Please try again later." }]);
+        setAiResponse("I apologize, but I received an unexpected response format from the AI. Please try again later.");
       }
     } catch (error) {
       console.error("Error sending initial data to LLM:", error);
       if (error instanceof Error && error.message !== "Unparseable AI response") {
-        showError("I apologize, but I encountered an error during the initial conversation. Please try again later.");
-        setMessages([{ role: "assistant", content: "I apologize, but I encountered an error. Please try again later." }]);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const sendMessage = async () => {
-    if (!currentMessage.trim() || isLoading) return;
-
-    const userMessage: Message = { role: "user", content: currentMessage };
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
-    setCurrentMessage("");
-    setIsLoading(true);
-
-    try {
-      const payload = {
-        chat_history: updatedMessages.map(msg => ({ role: msg.role, content: msg.content })),
-      };
-
-      const response = await fetch(LLM_WEBHOOK_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`HTTP error! status: ${response.status}, response: ${errorText}`);
-        showError(`Failed to get a response from the AI. Status: ${response.status}`);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await processAIResponse(response);
-      console.log("Full LLM response data (subsequent chat):", data);
-
-      const llmResponseContent = data.response;
-      if (llmResponseContent) {
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          { role: "assistant", content: llmResponseContent },
-        ]);
-      } else {
-        console.error("LLM response data did not contain a 'response' field:", data);
-        showError("The AI responded, but the expected 'response' content was missing. Please check the backend's output format.");
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          { role: "assistant", content: "I apologize, but I received an unexpected response format from the AI. Please try again later." },
-        ]);
-      }
-    } catch (error) {
-      console.error("Error sending message to LLM:", error);
-      if (error instanceof Error && error.message !== "Unparseable AI response") {
         showError("I apologize, but I encountered an error. Please try again later.");
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          { role: "assistant", content: "I apologize, but I encountered an error. Please try again later." },
-        ]);
+        setAiResponse("I apologize, but I encountered an error. Please try again later.");
       }
     } finally {
       setIsLoading(false);
@@ -204,70 +137,32 @@ const Chatbot = () => {
               </div>
               <Button onClick={handleStartChat} className="w-full" disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Start Conversation
+                Get AI Feedback
               </Button>
             </div>
           ) : (
             <div className="flex flex-col h-[600px]">
-              <ScrollArea className="flex-1 p-4 border rounded-md bg-gray-50 dark:bg-gray-800 mb-4">
-                <div className="space-y-4">
-                  {messages.map((msg, index) => (
-                    <div
-                      key={index}
-                      className={`flex items-start gap-3 ${
-                        msg.role === "user" ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      {msg.role === "assistant" && (
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src="/placeholder.svg" alt="AI" />
-                          <AvatarFallback className="bg-blue-500 text-white"><Bot size={16} /></AvatarFallback>
-                        </Avatar>
-                      )}
-                      <div
-                        className={`max-w-[70%] p-3 rounded-lg prose dark:prose-invert ${
-                          msg.role === "user"
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100"
-                        }`}
-                      >
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </div>
-                      {msg.role === "user" && (
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src="/placeholder.svg" alt="User" />
-                          <AvatarFallback className="bg-gray-400 text-white"><User size={16} /></AvatarFallback>
-                        </Avatar>
-                      )}
-                    </div>
-                  ))}
-                  {isLoading && (
+              {isLoading ? (
+                <div className="flex items-center justify-center flex-1">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                  <span className="ml-2 text-gray-600 dark:text-gray-300">Getting AI Feedback...</span>
+                </div>
+              ) : (
+                <ScrollArea className="flex-1 p-4 border rounded-md bg-gray-50 dark:bg-gray-800 mb-4">
+                  {aiResponse && (
                     <div className="flex items-start gap-3 justify-start">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src="/placeholder.svg" alt="AI" />
                         <AvatarFallback className="bg-blue-500 text-white"><Bot size={16} /></AvatarFallback>
                       </Avatar>
-                      <div className="max-w-[70%] p-3 rounded-lg bg-gray-200 dark:bg-gray-700">
-                        <Loader2 className="h-4 w-4 animate-spin text-gray-600 dark:text-gray-300" />
+                      <div className="max-w-[90%] p-3 rounded-lg prose dark:prose-invert bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100">
+                        <ReactMarkdown>{aiResponse}</ReactMarkdown>
                       </div>
                     </div>
                   )}
-                  <div ref={messagesEndRef} />
-                </div>
-              </ScrollArea>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Type your message..."
-                  value={currentMessage}
-                  onChange={(e) => setCurrentMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-                  disabled={isLoading}
-                  className="flex-1"
-                />
-                <Button onClick={sendMessage} disabled={isLoading}>
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send"}
-                </Button>
-              </div>
+                </ScrollArea>
+              )}
+              {/* No input field or send button here */}
             </div>
           )}
         </CardContent>
