@@ -9,6 +9,7 @@ import { Card, CardHeader, CardContent, CardFooter, CardTitle } from "@/componen
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Bot, User } from "lucide-react";
+import { showError } from "@/utils/toast"; // Import showError
 
 interface Message {
   role: "user" | "assistant";
@@ -35,12 +36,10 @@ const Chatbot = () => {
 
   const handleStartChat = async () => {
     if (!resume.trim() || !jobDescription.trim()) {
-      alert("Please provide both your resume and the job description to start the chat.");
+      showError("Please provide both your resume and the job description to start the chat.");
       return;
     }
     setIsInitialInputPhase(false);
-    // Optionally send initial context to LLM or just wait for the first user message
-    // For now, we'll just transition to the chat phase.
     setMessages([
       { role: "assistant", content: "Hello! I've received your resume and job description. How can I help you with your job application today?" }
     ]);
@@ -71,6 +70,9 @@ const Chatbot = () => {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+        showError(`Failed to get a response from the AI. Status: ${response.status}`);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -82,6 +84,7 @@ const Chatbot = () => {
       ]);
     } catch (error) {
       console.error("Error sending message to LLM:", error);
+      showError("I apologize, but I encountered an error. Please try again later.");
       setMessages((prevMessages) => [
         ...prevMessages,
         { role: "assistant", content: "I apologize, but I encountered an error. Please try again later." },
