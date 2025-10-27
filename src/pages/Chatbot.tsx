@@ -183,7 +183,7 @@ const Chatbot = () => {
                         <AvatarImage src="/placeholder.svg" alt="AI" />
                         <AvatarFallback className="bg-blue-500 text-white"><Bot size={16} /></AvatarFallback>
                       </Avatar>
-                      <div className="max-w-[90%] p-3 rounded-lg prose dark:prose-invert bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100">
+                      <div className="max-w-[90%] p-3 rounded-lg prose dark:prose-invert bg-blue-50 dark:bg-blue-950 text-gray-800 dark:text-gray-200 border border-blue-200 dark:border-blue-800 shadow-sm">
                         <ReactMarkdown>{aiResponse}</ReactMarkdown>
                       </div>
                     </div>
