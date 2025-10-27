@@ -76,31 +76,36 @@ const Chatbot = () => {
       }
 
       const data = await processAIResponse(response);
-      console.log("Full LLM response data:", data);
-
+      console.log("Full LLM response data received:", data); // Existing log
+      
       const llmResponseContent = data.response;
+      console.log("Extracted llmResponseContent:", llmResponseContent); // New log for extracted content
+
       if (llmResponseContent) {
         let finalContent = llmResponseContent;
         try {
-          // Attempt to parse the content if it's a JSON string
           const innerParsed = JSON.parse(llmResponseContent);
-          // If it's an object and has a 'message' field (common for errors)
           if (typeof innerParsed === 'object' && innerParsed !== null && 'message' in innerParsed) {
             finalContent = `**AI Message:**\n\n${innerParsed.message}`;
-            showError(innerParsed.message); // Show a toast for the error message
+            showError(innerParsed.message);
           } else if (typeof innerParsed === 'object' && innerParsed !== null && 'feedback' in innerParsed) {
-            // If it has a 'feedback' field (for successful responses that might be nested)
             finalContent = innerParsed.feedback;
           }
         } catch (e) {
           // If parsing fails, it's not a JSON string, so treat it as plain Markdown.
-          // finalContent remains llmResponseContent
         }
         setAiResponse(finalContent);
       } else {
-        console.error("LLM response data did not contain a 'response' field:", data);
-        showError("The AI responded, but the expected 'response' content was missing. Please check the backend's output format.");
-        setAiResponse("I apologize, but I received an unexpected response format from the AI. Please try again later.");
+        // More specific error messages based on whether 'response' key exists
+        if (data.hasOwnProperty('response')) {
+          console.error("LLM response data contained an empty or null 'response' field:", llmResponseContent);
+          showError("The AI responded, but the 'response' content was empty. Please check your AI workflow's output.");
+          setAiResponse("I apologize, but the AI provided an empty response. Please try again later or check your backend configuration.");
+        } else {
+          console.error("LLM response data did not contain a 'response' field:", data);
+          showError("The AI responded, but the expected 'response' content was missing. Please check the backend's output format.");
+          setAiResponse("I apologize, but I received an unexpected response format from the AI. Please try again later.");
+        }
       }
     } catch (error) {
       console.error("Error sending initial data to LLM:", error);
