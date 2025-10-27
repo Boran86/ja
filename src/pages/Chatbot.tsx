@@ -223,7 +223,7 @@ const Chatbot = () => {
                         </Avatar>
                       )}
                       <div className={cn(
-                        "max-w-[70%] p-3 rounded-lg prose dark:prose-invert shadow-sm",
+                        "max-w-[85%] p-3 rounded-lg prose dark:prose-invert shadow-sm break-words", // Changed max-w to 85% and added break-words
                         msg.role === "user"
                           ? "bg-blue-600 text-white dark:bg-blue-700 dark:text-gray-100"
                           : "bg-blue-50 dark:bg-blue-950 text-gray-800 dark:text-gray-200 border border-blue-200 dark:border-blue-800"
