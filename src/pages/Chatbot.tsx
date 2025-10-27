@@ -40,6 +40,11 @@ const Chatbot = () => {
     let finalContent: string;
 
     if (typeof rawContent === 'object' && rawContent !== null) {
+      // Handle the new array format: [ { "output": "..." } ]
+      if (Array.isArray(rawContent) && rawContent.length > 0 && typeof rawContent[0] === 'object' && rawContent[0] !== null && 'output' in rawContent[0] && typeof rawContent[0].output === 'string') {
+        return rawContent[0].output; // Directly return the output string
+      }
+
       let messageToDisplay: string | undefined;
 
       // Prioritize 'response' field
