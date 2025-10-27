@@ -86,12 +86,15 @@ const Chatbot = () => {
         try {
           const innerParsed = JSON.parse(llmResponseContent);
           if (typeof innerParsed === 'object' && innerParsed !== null) {
-            if ('message' in innerParsed) {
+            if (innerParsed.status === 'error' && 'message' in innerParsed) { // Handle status: error with message
+              finalContent = `**AI Error:**\n\n${innerParsed.message}`;
+              showError(innerParsed.message);
+            } else if ('message' in innerParsed) { // Existing handling for 'message'
               finalContent = `**AI Message:**\n\n${innerParsed.message}`;
               showError(innerParsed.message);
-            } else if ('feedback' in innerParsed) {
+            } else if ('feedback' in innerParsed) { // Existing handling for 'feedback'
               finalContent = innerParsed.feedback;
-            } else if ('error' in innerParsed) { // Added handling for 'error' key
+            } else if ('error' in innerParsed) { // Existing handling for 'error'
               finalContent = `**AI Error:**\n\n${innerParsed.error}`;
               showError(innerParsed.error);
             }
