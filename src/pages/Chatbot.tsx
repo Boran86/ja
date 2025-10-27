@@ -82,25 +82,31 @@ const Chatbot = () => {
       console.log("Extracted llmResponseContent:", llmResponseContent);
 
       if (llmResponseContent) {
-        let finalContent = llmResponseContent;
+        let finalContent = llmResponseContent; // Default to raw content
         try {
           const innerParsed = JSON.parse(llmResponseContent);
           if (typeof innerParsed === 'object' && innerParsed !== null) {
-            if (innerParsed.status === 'error' && 'message' in innerParsed) { // Handle status: error with message
+            // Prioritize error messages
+            if (innerParsed.status === 'error' && 'message' in innerParsed) {
               finalContent = `**AI Error:**\n\n${innerParsed.message}`;
-              showError(innerParsed.message);
-            } else if ('message' in innerParsed) { // Existing handling for 'message'
-              finalContent = `**AI Message:**\n\n${innerParsed.message}`;
-              showError(innerParsed.message);
-            } else if ('feedback' in innerParsed) { // Existing handling for 'feedback'
-              finalContent = innerParsed.feedback;
-            } else if ('error' in innerParsed) { // Existing handling for 'error'
+              showError(innerParsed.message); // Only show toast for errors
+            } else if ('error' in innerParsed) {
               finalContent = `**AI Error:**\n\n${innerParsed.error}`;
-              showError(innerParsed.error);
+              showError(innerParsed.error); // Only show toast for errors
+            }
+            // Then handle success/feedback messages
+            else if ('feedback' in innerParsed) {
+              finalContent = innerParsed.feedback;
+            } else if ('message' in innerParsed) {
+              finalContent = `**AI Message:**\n\n${innerParsed.message}`;
+              // Do NOT call showError here, as it's a regular message, not an error toast.
             }
           }
         } catch (e) {
-          // If parsing fails, it's not a JSON string, so treat it as plain Markdown.
+          // If JSON.parse fails, it means llmResponseContent was not a JSON string.
+          // In this case, finalContent remains the original llmResponseContent,
+          // which is the expected behavior for a direct markdown response.
+          console.log("llmResponseContent was not a JSON string, treating as plain markdown.");
         }
         setAiResponse(finalContent);
       } else {
