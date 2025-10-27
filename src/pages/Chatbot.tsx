@@ -73,12 +73,9 @@ const Chatbot = () => {
       if (typeof rawContent === 'object' && rawContent !== null) {
         let messageToDisplay: string | undefined;
 
-        // Prioritize 'response' field
+        // Try to extract a message from common keys
         if ('response' in rawContent && typeof rawContent.response === 'string') {
           messageToDisplay = rawContent.response;
-        } else if ('response' in rawContent && typeof rawContent.response === 'object') {
-          // If 'response' is an object, stringify it
-          messageToDisplay = `\`\`\`json\n${JSON.stringify(rawContent.response, null, 2)}\n\`\`\``;
         } else if ('message' in rawContent && typeof rawContent.message === 'string') {
           messageToDisplay = rawContent.message;
         } else if ('error' in rawContent && typeof rawContent.error === 'string') {
@@ -87,11 +84,12 @@ const Chatbot = () => {
           messageToDisplay = rawContent.feedback;
         }
 
-        // Attempt to parse messageToDisplay if it looks like a nested JSON string
+        // If a message was found, try to parse it further if it looks like nested JSON
         if (messageToDisplay) {
           try {
             const innerParsed = JSON.parse(messageToDisplay);
             if (typeof innerParsed === 'object' && innerParsed !== null) {
+              // Prioritize error messages from nested JSON
               if (innerParsed.status === 'error' && 'message' in innerParsed) {
                 messageToDisplay = `**AI Error:**\n\n${innerParsed.message}`;
               } else if ('error' in innerParsed) {
@@ -106,11 +104,12 @@ const Chatbot = () => {
               }
             }
           } catch (e) {
-            // Not a nested JSON string, use as is (likely markdown)
+            // Not a nested JSON string, use messageToDisplay as is (likely markdown)
           }
         }
         
-        finalContent = messageToDisplay || `**AI Response (unrecognized JSON format):**\n\n\`\`\`json\n${JSON.stringify(rawContent, null, 2)}\n\`\`\``;
+        // If no specific message was extracted, display the entire rawContent object as JSON
+        finalContent = messageToDisplay || `\`\`\`json\n${JSON.stringify(rawContent, null, 2)}\n\`\`\``;
 
       } else if (typeof rawContent === 'string') {
         finalContent = rawContent;
