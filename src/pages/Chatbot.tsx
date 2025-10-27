@@ -76,27 +76,31 @@ const Chatbot = () => {
       }
 
       const data = await processAIResponse(response);
-      console.log("Full LLM response data received:", data); // Existing log
+      console.log("Full LLM response data received:", data);
       
       const llmResponseContent = data.response;
-      console.log("Extracted llmResponseContent:", llmResponseContent); // New log for extracted content
+      console.log("Extracted llmResponseContent:", llmResponseContent);
 
       if (llmResponseContent) {
         let finalContent = llmResponseContent;
         try {
           const innerParsed = JSON.parse(llmResponseContent);
-          if (typeof innerParsed === 'object' && innerParsed !== null && 'message' in innerParsed) {
-            finalContent = `**AI Message:**\n\n${innerParsed.message}`;
-            showError(innerParsed.message);
-          } else if (typeof innerParsed === 'object' && innerParsed !== null && 'feedback' in innerParsed) {
-            finalContent = innerParsed.feedback;
+          if (typeof innerParsed === 'object' && innerParsed !== null) {
+            if ('message' in innerParsed) {
+              finalContent = `**AI Message:**\n\n${innerParsed.message}`;
+              showError(innerParsed.message);
+            } else if ('feedback' in innerParsed) {
+              finalContent = innerParsed.feedback;
+            } else if ('error' in innerParsed) { // Added handling for 'error' key
+              finalContent = `**AI Error:**\n\n${innerParsed.error}`;
+              showError(innerParsed.error);
+            }
           }
         } catch (e) {
           // If parsing fails, it's not a JSON string, so treat it as plain Markdown.
         }
         setAiResponse(finalContent);
       } else {
-        // More specific error messages based on whether 'response' key exists
         if (data.hasOwnProperty('response')) {
           console.error("LLM response data contained an empty or null 'response' field:", llmResponseContent);
           showError("The AI responded, but the 'response' content was empty. Please check your AI workflow's output.");
