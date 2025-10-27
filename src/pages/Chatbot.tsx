@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Bot } from "lucide-react";
 import { showError } from "@/utils/toast";
 import ReactMarkdown from "react-markdown";
+import { cn } from "@/lib/utils"; // Import cn for conditional class names
 
 interface Message {
   role: "user" | "assistant";
@@ -21,24 +22,77 @@ const LLM_WEBHOOK_URL = "https://BoranC-n8n-free.hf.space/webhook/d05757c2-2919-
 const Chatbot = () => {
   const [resume, setResume] = useState<string>("");
   const [jobDescription, setJobDescription] = useState<string>("");
-  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isInitialInputPhase, setIsInitialInputPhase] = useState<boolean>(true);
 
-  const handleStartChat = async () => {
-    if (!resume.trim() || !jobDescription.trim()) {
-      showError("Please provide both your resume and the job description to start.");
-      return;
-    }
-    setIsInitialInputPhase(false);
-    setIsLoading(true);
-    setAiResponse(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const processAiResponse = (rawContent: string | object): string => {
+    let finalContent: string;
+
+    if (typeof rawContent === 'object' && rawContent !== null) {
+      let messageToDisplay: string | undefined;
+
+      // Prioritize 'response' field
+      if ('response' in rawContent && typeof rawContent.response === 'string') {
+        messageToDisplay = rawContent.response;
+      } else if ('response' in rawContent && typeof rawContent.response === 'object') {
+        messageToDisplay = `\`\`\`json\n${JSON.stringify(rawContent.response, null, 2)}\n\`\`\``;
+      } else if ('message' in rawContent && typeof rawContent.message === 'string') {
+        messageToDisplay = rawContent.message;
+      } else if ('error' in rawContent && typeof rawContent.error === 'string') {
+        messageToDisplay = `**AI Error:**\n\n${rawContent.error}`;
+      } else if ('feedback' in rawContent && typeof rawContent.feedback === 'string') {
+        messageToDisplay = rawContent.feedback;
+      }
+
+      if (messageToDisplay) {
+        try {
+          const innerParsed = JSON.parse(messageToDisplay);
+          if (typeof innerParsed === 'object' && innerParsed !== null) {
+            if (innerParsed.status === 'error' && 'message' in innerParsed) {
+              messageToDisplay = `**AI Error:**\n\n${innerParsed.message}`;
+            } else if ('error' in innerParsed) {
+              messageToDisplay = `**AI Error:**\n\n${innerParsed.error}`;
+            } else if ('feedback' in innerParsed) {
+              messageToDisplay = innerParsed.feedback;
+            } else if ('message' in innerParsed) {
+              messageToDisplay = innerParsed.message;
+            } else {
+              messageToDisplay = `\`\`\`json\n${JSON.stringify(innerParsed, null, 2)}\n\`\`\``;
+            }
+          }
+        } catch (e) {
+          // Not a nested JSON string, use messageToDisplay as is (likely markdown)
+        }
+      }
+      
+      finalContent = messageToDisplay || `\`\`\`json\n${JSON.stringify(rawContent, null, 2)}\n\`\`\``;
+
+    } else if (typeof rawContent === 'string') {
+      finalContent = rawContent;
+    } else {
+      finalContent = "No AI response received or response was uninterpretable.";
+    }
+    return finalContent;
+  };
+
+  const sendToLLM = async (currentMessages: Message[]) => {
+    setIsLoading(true);
     try {
       const payload = {
         resume: resume,
         job_description: jobDescription,
-        chat_history: [],
+        chat_history: currentMessages, // Send the entire chat history
       };
 
       const response = await fetch(LLM_WEBHOOK_URL, {
@@ -53,7 +107,7 @@ const Chatbot = () => {
         const errorText = await response.text();
         console.error(`HTTP error! status: ${response.status}, response: ${errorText}`);
         showError(`Failed to get a response from the AI. Status: ${response.status}`);
-        setAiResponse(`**HTTP Error:** Status ${response.status}\n\n\`\`\`\n${errorText}\n\`\`\``);
+        setMessages((prev) => [...prev, { role: "assistant", content: `**HTTP Error:** Status ${response.status}\n\n\`\`\`\n${errorText}\n\`\`\`` }]);
         return;
       }
 
@@ -67,64 +121,47 @@ const Chatbot = () => {
       }
       
       console.log("Raw AI response received:", rawContent);
-
-      let finalContent: string;
-
-      if (typeof rawContent === 'object' && rawContent !== null) {
-        let messageToDisplay: string | undefined;
-
-        // Try to extract a message from common keys
-        if ('response' in rawContent && typeof rawContent.response === 'string') {
-          messageToDisplay = rawContent.response;
-        } else if ('message' in rawContent && typeof rawContent.message === 'string') {
-          messageToDisplay = rawContent.message;
-        } else if ('error' in rawContent && typeof rawContent.error === 'string') {
-          messageToDisplay = `**AI Error:**\n\n${rawContent.error}`;
-        } else if ('feedback' in rawContent && typeof rawContent.feedback === 'string') {
-          messageToDisplay = rawContent.feedback;
-        }
-
-        // If a message was found, try to parse it further if it looks like nested JSON
-        if (messageToDisplay) {
-          try {
-            const innerParsed = JSON.parse(messageToDisplay);
-            if (typeof innerParsed === 'object' && innerParsed !== null) {
-              // Prioritize error messages from nested JSON
-              if (innerParsed.status === 'error' && 'message' in innerParsed) {
-                messageToDisplay = `**AI Error:**\n\n${innerParsed.message}`;
-              } else if ('error' in innerParsed) {
-                messageToDisplay = `**AI Error:**\n\n${innerParsed.error}`;
-              } else if ('feedback' in innerParsed) {
-                messageToDisplay = innerParsed.feedback;
-              } else if ('message' in innerParsed) {
-                messageToDisplay = innerParsed.message;
-              } else {
-                // If it's an object but doesn't match known keys, stringify it for display
-                messageToDisplay = `\`\`\`json\n${JSON.stringify(innerParsed, null, 2)}\n\`\`\``;
-              }
-            }
-          } catch (e) {
-            // Not a nested JSON string, use messageToDisplay as is (likely markdown)
-          }
-        }
-        
-        // If no specific message was extracted, display the entire rawContent object as JSON
-        finalContent = messageToDisplay || `\`\`\`json\n${JSON.stringify(rawContent, null, 2)}\n\`\`\``;
-
-      } else if (typeof rawContent === 'string') {
-        finalContent = rawContent;
-      } else {
-        finalContent = "No AI response received or response was uninterpretable.";
-      }
-      
-      setAiResponse(finalContent);
+      const finalContent = processAiResponse(rawContent);
+      setMessages((prev) => [...prev, { role: "assistant", content: finalContent }]);
 
     } catch (error) {
-      console.error("Error sending initial data to LLM:", error);
+      console.error("Error sending data to LLM:", error);
       showError("I apologize, but I encountered an error. Please try again later.");
-      setAiResponse(`**Application Error:**\n\n\`\`\`\n${error instanceof Error ? error.message : String(error)}\n\`\`\``);
+      setMessages((prev) => [...prev, { role: "assistant", content: `**Application Error:**\n\n\`\`\`\n${error instanceof Error ? error.message : String(error)}\n\`\`\`` }]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleInitialSubmit = async () => {
+    if (!resume.trim() || !jobDescription.trim()) {
+      showError("Please provide both your resume and the job description to start.");
+      return;
+    }
+    setIsInitialInputPhase(false);
+    setIsLoading(true);
+    
+    // Send initial data, chat_history will be empty for the first call
+    await sendToLLM([]); 
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim()) {
+      return;
+    }
+
+    const newUserMessage: Message = { role: "user", content: inputMessage };
+    const updatedMessages = [...messages, newUserMessage];
+    setMessages(updatedMessages);
+    setInputMessage(""); // Clear input immediately
+
+    await sendToLLM(updatedMessages);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
 
@@ -163,37 +200,59 @@ const Chatbot = () => {
                   className="min-h-[150px]"
                 />
               </div>
-              <Button onClick={handleStartChat} className="w-full" disabled={isLoading}>
+              <Button onClick={handleInitialSubmit} className="w-full" disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Get AI Feedback
               </Button>
             </div>
           ) : (
             <div className="flex flex-col h-[600px]">
-              {isLoading ? (
-                <div className="flex items-center justify-center flex-1">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                  <span className="ml-2 text-gray-600 dark:text-gray-300">Getting AI Feedback...</span>
-                </div>
-              ) : (
-                <ScrollArea className="flex-1 p-4 border rounded-md bg-gray-50 dark:bg-gray-800 mb-4">
-                  {aiResponse ? (
-                    <div className="flex items-start gap-3 justify-start">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src="/placeholder.svg" alt="AI" />
-                        <AvatarFallback className="bg-blue-500 text-white"><Bot size={16} /></AvatarFallback>
-                      </Avatar>
-                      <div className="max-w-[90%] p-3 rounded-lg prose dark:prose-invert bg-blue-50 dark:bg-blue-950 text-gray-800 dark:text-gray-200 border border-blue-200 dark:border-blue-800 shadow-sm">
-                        <ReactMarkdown>{aiResponse}</ReactMarkdown>
+              <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 border rounded-md bg-gray-50 dark:bg-gray-800 mb-4">
+                {messages.length > 0 ? (
+                  messages.map((msg, index) => (
+                    <div key={index} className={cn("flex items-start gap-3 mb-4", msg.role === "user" ? "justify-end" : "justify-start")}>
+                      {msg.role === "assistant" && (
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src="/placeholder.svg" alt="AI" />
+                          <AvatarFallback className="bg-blue-500 text-white"><Bot size={16} /></AvatarFallback>
+                        </Avatar>
+                      )}
+                      <div className={cn(
+                        "max-w-[70%] p-3 rounded-lg prose dark:prose-invert shadow-sm",
+                        msg.role === "user"
+                          ? "bg-blue-600 text-white dark:bg-blue-700 dark:text-gray-100"
+                          : "bg-blue-50 dark:bg-blue-950 text-gray-800 dark:text-gray-200 border border-blue-200 dark:border-blue-800"
+                      )}>
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
                       </div>
+                      {msg.role === "user" && (
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src="/placeholder.svg" alt="User" />
+                          <AvatarFallback className="bg-gray-500 text-white">U</AvatarFallback>
+                        </Avatar>
+                      )}
                     </div>
-                  ) : (
-                    <div className="text-center text-gray-500 dark:text-gray-400">
-                      No AI response received. Please check your AI webhook configuration.
-                    </div>
-                  )}
-                </ScrollArea>
-              )}
+                  ))
+                ) : (
+                  <div className="text-center text-gray-500 dark:text-gray-400">
+                    Start the conversation by providing your resume and job description.
+                  </div>
+                )}
+              </ScrollArea>
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Type your message here..."
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  rows={1}
+                  className="flex-1 min-h-[40px]"
+                  disabled={isLoading}
+                />
+                <Button onClick={handleSendMessage} disabled={isLoading || !inputMessage.trim()}>
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send"}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
