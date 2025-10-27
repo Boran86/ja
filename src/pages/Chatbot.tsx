@@ -54,21 +54,71 @@ const Chatbot = () => {
         console.error(`HTTP error! status: ${response.status}, response: ${errorText}`);
         showError(`Failed to get a response from the AI. Status: ${response.status}`);
         setAiResponse(`**HTTP Error:** Status ${response.status}\n\n\`\`\`\n${errorText}\n\`\`\``);
-        return; // Stop here if HTTP error
+        return;
       }
 
       const contentType = response.headers.get("Content-Type");
-      let rawContent: string;
+      let rawContent: string | object;
 
       if (contentType && contentType.includes("application/json")) {
-        const data = await response.json();
-        rawContent = `\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``;
+        rawContent = await response.json();
       } else {
         rawContent = await response.text();
       }
       
       console.log("Raw AI response received:", rawContent);
-      setAiResponse(rawContent);
+
+      let finalContent: string;
+
+      if (typeof rawContent === 'object' && rawContent !== null) {
+        let messageToDisplay: string | undefined;
+
+        // Prioritize 'response' field
+        if ('response' in rawContent && typeof rawContent.response === 'string') {
+          messageToDisplay = rawContent.response;
+        } else if ('response' in rawContent && typeof rawContent.response === 'object') {
+          // If 'response' is an object, stringify it
+          messageToDisplay = `\`\`\`json\n${JSON.stringify(rawContent.response, null, 2)}\n\`\`\``;
+        } else if ('message' in rawContent && typeof rawContent.message === 'string') {
+          messageToDisplay = rawContent.message;
+        } else if ('error' in rawContent && typeof rawContent.error === 'string') {
+          messageToDisplay = `**AI Error:**\n\n${rawContent.error}`;
+        } else if ('feedback' in rawContent && typeof rawContent.feedback === 'string') {
+          messageToDisplay = rawContent.feedback;
+        }
+
+        // Attempt to parse messageToDisplay if it looks like a nested JSON string
+        if (messageToDisplay) {
+          try {
+            const innerParsed = JSON.parse(messageToDisplay);
+            if (typeof innerParsed === 'object' && innerParsed !== null) {
+              if (innerParsed.status === 'error' && 'message' in innerParsed) {
+                messageToDisplay = `**AI Error:**\n\n${innerParsed.message}`;
+              } else if ('error' in innerParsed) {
+                messageToDisplay = `**AI Error:**\n\n${innerParsed.error}`;
+              } else if ('feedback' in innerParsed) {
+                messageToDisplay = innerParsed.feedback;
+              } else if ('message' in innerParsed) {
+                messageToDisplay = innerParsed.message;
+              } else {
+                // If it's an object but doesn't match known keys, stringify it for display
+                messageToDisplay = `\`\`\`json\n${JSON.stringify(innerParsed, null, 2)}\n\`\`\``;
+              }
+            }
+          } catch (e) {
+            // Not a nested JSON string, use as is (likely markdown)
+          }
+        }
+        
+        finalContent = messageToDisplay || `**AI Response (unrecognized JSON format):**\n\n\`\`\`json\n${JSON.stringify(rawContent, null, 2)}\n\`\`\``;
+
+      } else if (typeof rawContent === 'string') {
+        finalContent = rawContent;
+      } else {
+        finalContent = "No AI response received or response was uninterpretable.";
+      }
+      
+      setAiResponse(finalContent);
 
     } catch (error) {
       console.error("Error sending initial data to LLM:", error);
