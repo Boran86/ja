@@ -25,25 +25,6 @@ const Chatbot = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isInitialInputPhase, setIsInitialInputPhase] = useState<boolean>(true);
 
-  const processAIResponse = async (response: Response) => {
-    let data;
-    const contentType = response.headers.get("Content-Type");
-
-    if (contentType && contentType.includes("application/json")) {
-      data = await response.json();
-    } else {
-      const textResponse = await response.text();
-      try {
-        data = JSON.parse(textResponse);
-      } catch (parseError) {
-        console.error("Failed to parse response as JSON:", parseError, "Raw response:", textResponse);
-        showError("Received an unparseable response from the AI. Please check the backend.");
-        throw new Error("Unparseable AI response");
-      }
-    }
-    return data;
-  };
-
   const handleStartChat = async () => {
     if (!resume.trim() || !jobDescription.trim()) {
       showError("Please provide both your resume and the job description to start.");
@@ -72,72 +53,27 @@ const Chatbot = () => {
         const errorText = await response.text();
         console.error(`HTTP error! status: ${response.status}, response: ${errorText}`);
         showError(`Failed to get a response from the AI. Status: ${response.status}`);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        setAiResponse(`**HTTP Error:** Status ${response.status}\n\n\`\`\`\n${errorText}\n\`\`\``);
+        return; // Stop here if HTTP error
       }
 
-      const data = await processAIResponse(response);
-      console.log("Full LLM response data received:", data);
+      const contentType = response.headers.get("Content-Type");
+      let rawContent: string;
 
-      let rawAiContent: string | object | null = null;
-
-      // First, check if 'response' field exists and is not null/undefined
-      if (data && typeof data === 'object' && 'response' in data && data.response !== null) {
-        rawAiContent = data.response;
-      } else if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-        // If no 'response' field, but data is an object, assume data itself is the content
-        rawAiContent = data;
-      } else if (typeof data === 'string') {
-        // If data is a string, use it directly
-        rawAiContent = data;
-      }
-
-      console.log("Extracted rawAiContent:", rawAiContent);
-
-      if (rawAiContent) {
-        let finalContent = String(rawAiContent); // Default to string representation
-
-        try {
-          // Attempt to parse rawAiContent if it's a string, otherwise use it directly
-          const innerParsed = typeof rawAiContent === 'string' ? JSON.parse(rawAiContent) : rawAiContent;
-
-          if (typeof innerParsed === 'object' && innerParsed !== null) {
-            // Prioritize error messages
-            if (innerParsed.status === 'error' && 'message' in innerParsed) {
-              finalContent = `**AI Error:**\n\n${innerParsed.message}`;
-              showError(innerParsed.message);
-            } else if ('error' in innerParsed) {
-              finalContent = `**AI Error:**\n\n${innerParsed.error}`;
-              showError(innerParsed.error);
-            }
-            // Then handle success/feedback messages
-            else if ('feedback' in innerParsed) {
-              finalContent = innerParsed.feedback;
-            } else if ('message' in innerParsed) {
-              finalContent = `**AI Message:**\n\n${innerParsed.message}`;
-            } else {
-              // If it's an object but doesn't match known keys, stringify it for display
-              finalContent = `**AI Response (unrecognized format):**\n\n\`\`\`json\n${JSON.stringify(innerParsed, null, 2)}\n\`\`\``;
-              showError("Received an AI response in an unrecognized JSON format.");
-            }
-          }
-        } catch (e) {
-          // If JSON.parse fails, it means rawAiContent was not a JSON string.
-          // In this case, finalContent remains the original string representation,
-          // which is the expected behavior for a direct markdown response.
-          console.log("rawAiContent was not a JSON string, treating as plain markdown.");
-        }
-        setAiResponse(finalContent);
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();
+        rawContent = `\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``;
       } else {
-        console.error("LLM response data was empty or uninterpretable:", data);
-        showError("The AI responded, but the content was empty or uninterpretable. Please check your AI workflow's output.");
-        setAiResponse("I apologize, but the AI provided an empty or uninterpretable response. Please try again later or check your backend configuration.");
+        rawContent = await response.text();
       }
+      
+      console.log("Raw AI response received:", rawContent);
+      setAiResponse(rawContent);
+
     } catch (error) {
       console.error("Error sending initial data to LLM:", error);
-      if (error instanceof Error && error.message !== "Unparseable AI response") {
-        showError("I apologize, but I encountered an error. Please try again later.");
-        setAiResponse("I apologize, but I encountered an error. Please try again later.");
-      }
+      showError("I apologize, but I encountered an error. Please try again later.");
+      setAiResponse(`**Application Error:**\n\n\`\`\`\n${error instanceof Error ? error.message : String(error)}\n\`\`\``);
     } finally {
       setIsLoading(false);
     }
