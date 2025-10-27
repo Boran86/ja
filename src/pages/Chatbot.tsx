@@ -77,48 +77,60 @@ const Chatbot = () => {
 
       const data = await processAIResponse(response);
       console.log("Full LLM response data received:", data);
-      
-      const llmResponseContent = data.response;
-      console.log("Extracted llmResponseContent:", llmResponseContent);
 
-      if (llmResponseContent) {
-        let finalContent = llmResponseContent; // Default to raw content
+      let rawAiContent: string | object | null = null;
+
+      // First, check if 'response' field exists and is not null/undefined
+      if (data && typeof data === 'object' && 'response' in data && data.response !== null) {
+        rawAiContent = data.response;
+      } else if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+        // If no 'response' field, but data is an object, assume data itself is the content
+        rawAiContent = data;
+      } else if (typeof data === 'string') {
+        // If data is a string, use it directly
+        rawAiContent = data;
+      }
+
+      console.log("Extracted rawAiContent:", rawAiContent);
+
+      if (rawAiContent) {
+        let finalContent = String(rawAiContent); // Default to string representation
+
         try {
-          const innerParsed = JSON.parse(llmResponseContent);
+          // Attempt to parse rawAiContent if it's a string, otherwise use it directly
+          const innerParsed = typeof rawAiContent === 'string' ? JSON.parse(rawAiContent) : rawAiContent;
+
           if (typeof innerParsed === 'object' && innerParsed !== null) {
             // Prioritize error messages
             if (innerParsed.status === 'error' && 'message' in innerParsed) {
               finalContent = `**AI Error:**\n\n${innerParsed.message}`;
-              showError(innerParsed.message); // Only show toast for errors
+              showError(innerParsed.message);
             } else if ('error' in innerParsed) {
               finalContent = `**AI Error:**\n\n${innerParsed.error}`;
-              showError(innerParsed.error); // Only show toast for errors
+              showError(innerParsed.error);
             }
             // Then handle success/feedback messages
             else if ('feedback' in innerParsed) {
               finalContent = innerParsed.feedback;
             } else if ('message' in innerParsed) {
               finalContent = `**AI Message:**\n\n${innerParsed.message}`;
-              // Do NOT call showError here, as it's a regular message, not an error toast.
+            } else {
+              // If it's an object but doesn't match known keys, stringify it for display
+              finalContent = `**AI Response (unrecognized format):**\n\n\`\`\`json\n${JSON.stringify(innerParsed, null, 2)}\n\`\`\``;
+              showError("Received an AI response in an unrecognized JSON format.");
             }
           }
         } catch (e) {
-          // If JSON.parse fails, it means llmResponseContent was not a JSON string.
-          // In this case, finalContent remains the original llmResponseContent,
+          // If JSON.parse fails, it means rawAiContent was not a JSON string.
+          // In this case, finalContent remains the original string representation,
           // which is the expected behavior for a direct markdown response.
-          console.log("llmResponseContent was not a JSON string, treating as plain markdown.");
+          console.log("rawAiContent was not a JSON string, treating as plain markdown.");
         }
         setAiResponse(finalContent);
       } else {
-        if (data.hasOwnProperty('response')) {
-          console.error("LLM response data contained an empty or null 'response' field:", llmResponseContent);
-          showError("The AI responded, but the 'response' content was empty. Please check your AI workflow's output.");
-          setAiResponse("I apologize, but the AI provided an empty response. Please try again later or check your backend configuration.");
-        } else {
-          console.error("LLM response data did not contain a 'response' field:", data);
-          showError("The AI responded, but the expected 'response' content was missing. Please check the backend's output format.");
-          setAiResponse("I apologize, but I received an unexpected response format from the AI. Please try again later.");
-        }
+        console.error("LLM response data was empty or uninterpretable:", data);
+        showError("The AI responded, but the content was empty or uninterpretable. Please check your AI workflow's output.");
+        setAiResponse("I apologize, but the AI provided an empty or uninterpretable response. Please try again later or check your backend configuration.");
       }
     } catch (error) {
       console.error("Error sending initial data to LLM:", error);
