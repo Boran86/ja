@@ -80,7 +80,23 @@ const Chatbot = () => {
 
       const llmResponseContent = data.response;
       if (llmResponseContent) {
-        setAiResponse(llmResponseContent);
+        let finalContent = llmResponseContent;
+        try {
+          // Attempt to parse the content if it's a JSON string
+          const innerParsed = JSON.parse(llmResponseContent);
+          // If it's an object and has a 'message' field (common for errors)
+          if (typeof innerParsed === 'object' && innerParsed !== null && 'message' in innerParsed) {
+            finalContent = `**AI Message:**\n\n${innerParsed.message}`;
+            showError(innerParsed.message); // Show a toast for the error message
+          } else if (typeof innerParsed === 'object' && innerParsed !== null && 'feedback' in innerParsed) {
+            // If it has a 'feedback' field (for successful responses that might be nested)
+            finalContent = innerParsed.feedback;
+          }
+        } catch (e) {
+          // If parsing fails, it's not a JSON string, so treat it as plain Markdown.
+          // finalContent remains llmResponseContent
+        }
+        setAiResponse(finalContent);
       } else {
         console.error("LLM response data did not contain a 'response' field:", data);
         showError("The AI responded, but the expected 'response' content was missing. Please check the backend's output format.");
