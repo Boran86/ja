@@ -4,11 +4,10 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input"; // Keep Input for now, might be removed if not used
 import { Card, CardHeader, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Bot } from "lucide-react"; // User icon not needed if no user messages after initial input
+import { Loader2, Bot } from "lucide-react";
 import { showError } from "@/utils/toast";
 import ReactMarkdown from "react-markdown";
 
@@ -22,11 +21,9 @@ const LLM_WEBHOOK_URL = "https://BoranC-n8n-free.hf.space/webhook/d05757c2-2919-
 const Chatbot = () => {
   const [resume, setResume] = useState<string>("");
   const [jobDescription, setJobDescription] = useState<string>("");
-  const [aiResponse, setAiResponse] = useState<string | null>(null); // Stores the single AI response
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isInitialInputPhase, setIsInitialInputPhase] = useState<boolean>(true);
-
-  // messagesEndRef and scrollToBottom are no longer needed for a single response display
 
   const processAIResponse = async (response: Response) => {
     let data;
@@ -52,15 +49,15 @@ const Chatbot = () => {
       showError("Please provide both your resume and the job description to start.");
       return;
     }
-    setIsInitialInputPhase(false); // Transition out of initial input phase
+    setIsInitialInputPhase(false);
     setIsLoading(true);
-    setAiResponse(null); // Clear previous response if any
+    setAiResponse(null);
 
     try {
       const payload = {
         resume: resume,
         job_description: jobDescription,
-        chat_history: [], // Initial call, no chat history yet
+        chat_history: [],
       };
 
       const response = await fetch(LLM_WEBHOOK_URL, {
@@ -83,7 +80,7 @@ const Chatbot = () => {
 
       const llmResponseContent = data.response;
       if (llmResponseContent) {
-        setAiResponse(llmResponseContent); // Store the AI's single response
+        setAiResponse(llmResponseContent);
       } else {
         console.error("LLM response data did not contain a 'response' field:", data);
         showError("The AI responded, but the expected 'response' content was missing. Please check the backend's output format.");
@@ -149,7 +146,7 @@ const Chatbot = () => {
                 </div>
               ) : (
                 <ScrollArea className="flex-1 p-4 border rounded-md bg-gray-50 dark:bg-gray-800 mb-4">
-                  {aiResponse && (
+                  {aiResponse ? (
                     <div className="flex items-start gap-3 justify-start">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src="/placeholder.svg" alt="AI" />
@@ -159,10 +156,13 @@ const Chatbot = () => {
                         <ReactMarkdown>{aiResponse}</ReactMarkdown>
                       </div>
                     </div>
+                  ) : (
+                    <div className="text-center text-gray-500 dark:text-gray-400">
+                      No AI response received. Please check your AI webhook configuration.
+                    </div>
                   )}
                 </ScrollArea>
               )}
-              {/* No input field or send button here */}
             </div>
           )}
         </CardContent>
